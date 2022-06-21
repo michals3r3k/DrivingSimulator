@@ -38,8 +38,6 @@ void main(void) {
 
 
 
-
-
     gl_Position=P*V*M*vertex;
     vec4 lp = vec4(0, 20, 0, 1); //przestrzeń świata
     l = normalize(V * lp - V*M*vertex); //wektor do światła w przestrzeni oka

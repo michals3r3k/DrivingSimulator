@@ -136,14 +136,14 @@ public:
     glm::mat4 getModelMatrix()
     {
     return glm::translate(glm::mat4(1.0f), Position) 
-        * glm::rotate(glm::mat4(1.0f), PI, glm::vec3(0.0f, 1.0f, 0.0f))
+        * glm::rotate(glm::mat4(1.0f), PI/2, glm::vec3(0.0f, 1.0f, 0.0f))
         * glm::rotate(glm::mat4(1.0f), glm::radians(Angle), glm::vec3(0.0f, 1.0f, 0.0f));
     }
 
     glm::mat4 getCameraMatrix()
     {
         return glm::lookAt(
-            glm::vec3(0, 4, -6),
+            glm::vec3(-7, 6, 0),
             glm::vec3(1, 1, 0),
             glm::vec3(0, 1, 0)) * glm::inverse(getModelMatrix());
     }

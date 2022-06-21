@@ -266,7 +266,7 @@ std::vector<MeshToLoad> getCarMeshesToLoad()
 		{
 			objl::Vertex vertex = mesh.Vertices[j];
 			meshToLoad.vertices.push_back(glm::vec4(vertex.Position.X, vertex.Position.Y, vertex.Position.Z, 1.0f));
-			meshToLoad.normals.push_back(glm::vec4(vertex.Normal.X, vertex.Normal.Y, vertex.Normal.Z, 0.0f));
+			meshToLoad.normals.push_back(glm::vec4(-vertex.Normal.X, -vertex.Normal.Y, -vertex.Normal.Z, 0.0f));
 			meshToLoad.texCoords.push_back(glm::vec2(vertex.TextureCoordinate.X, vertex.TextureCoordinate.Y));
 		}
 		meshToLoad.indices = mesh.Indices;
@@ -292,7 +292,7 @@ void initOpenGLProgram(GLFWwindow* window) {
 	sp=new ShaderProgram("v_simplest.glsl",NULL,"f_simplest.glsl");
 	car = new MyCar(40.0f, 60.0f, glm::vec3(-34,0,-28), false, 0.5f, 40.0f);
 	enemyCar = new MyCar(20.0f, 1.0f, glm::vec3(-34, 0, -28), true, 0.5f, 20.0f);
-	enemyCar1 = new MyCar(15.0f, 1.0f, glm::vec3(-34, 0, -28), true, 1.0f, 10.0f);
+	enemyCar1 = new MyCar(15.0f, 1.0f, glm::vec3(-34, 0, -20), true, 1.0f, 10.0f);
 	enemyCar2 = new MyCar(5.0f, 1.0f, glm::vec3(-34, 0, -28), true, 1.6f, 5.0f);
 	tex0 = readTexture("tor2.png");
 	tex1 = readTexture("metal_spec.png");
@@ -357,10 +357,7 @@ void drawCar1(MyCar* car)
 		objl::Material material = loader.LoadedMaterials[i];
 	}
 */
-
-	glm::mat4 M = glm::mat4(1.0f);
-	M = glm::scale(M, glm::vec3(20.0f));
-	glUniformMatrix4fv(sp->u("M"), 1, false, glm::value_ptr(M));
+	glUniformMatrix4fv(sp->u("M"), 1, false, glm::value_ptr(car->getModelMatrix()));
 
 	for (int i = 0; i < carMeshes.size(); i++)
 	{
@@ -393,8 +390,6 @@ void drawCar1(MyCar* car)
 		glEnableVertexAttribArray(sp->a("texCoord0"));  //Włącz przesyłanie danych do atrybutu texCoord
 		glVertexAttribPointer(sp->a("texCoord0"), 2, GL_FLOAT, false, 0, mesh.texCoords.data()); //Wskaż tablicę z danymi dla atrybutu texCoord
 
-		glDrawElements(GL_TRIANGLES, mesh.indices.size(), GL_UNSIGNED_INT, mesh.indices.data());
-
 		glUniform1i(sp->u("textureMap0"), 0);
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, mesh.kaLoadedMap);
@@ -402,6 +397,8 @@ void drawCar1(MyCar* car)
 		glUniform1i(sp->u("textureMap1"), 1);
 		glActiveTexture(GL_TEXTURE1);
 		glBindTexture(GL_TEXTURE_2D, mesh.kdLoadedMap);
+
+		glDrawElements(GL_TRIANGLES, mesh.indices.size(), GL_UNSIGNED_INT, mesh.indices.data());
 
 		glDisableVertexAttribArray(sp->a("vertex"));  //Wyłącz przesyłanie danych do atrybutu vertex
 		glDisableVertexAttribArray(sp->a("normal"));  //Wyłącz przesyłanie danych do atrybutu normal
@@ -444,7 +441,7 @@ void drawScene(GLFWwindow* window){//,float actual_angle_x, float actual_x, floa
 		glm::vec3(0.0f, 1.0f, 0.0f));
 	glm::mat4 P = glm::mat4(1.0f);
 	P = glm::perspective(
-			100 * PI / 180.0f, // ustawiamy FOV
+			80 * PI / 180.0f, // ustawiamy FOV
 			aspectRatio,
 			0.01f,
 			300.0f); //Wylicz macierz rzutowania
@@ -481,9 +478,9 @@ void drawScene(GLFWwindow* window){//,float actual_angle_x, float actual_x, floa
 	// -- rysuj plansze
 
 	drawCar1(car);
-	drawCar(enemyCar);
-	drawCar(enemyCar1);
-	drawCar(enemyCar2);
+	drawCar1(enemyCar);
+	drawCar1(enemyCar1);
+	drawCar1(enemyCar2);
     glfwSwapBuffers(window); //Przerzuć tylny bufor na przedni
 }
 
@@ -528,13 +525,13 @@ int main(void)
 		enemyCar1->goAutonomous(glfwGetTime());
 		enemyCar2->goAutonomous(glfwGetTime());
 
-		/*car->hasColision(enemyCar);
+		car->hasColision(enemyCar);
 		car->hasColision(enemyCar1);
 		car->hasColision(enemyCar2);
 		enemyCar2->hasColision(car);
 		enemyCar1->hasColision(car);
 		enemyCar2->hasColision(enemyCar1);
-		enemyCar1->hasColision(enemyCar2);*/
+		enemyCar1->hasColision(enemyCar2);
 
         glfwSetTime(0); //Zeruj timer
 		drawScene(window); //Wykonaj procedurę rysującą
