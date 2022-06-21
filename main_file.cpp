@@ -181,6 +181,17 @@ float baseTexCoords[] {
 	0.0f, 1.0f,//-
 };
 
+struct MeshToLoad
+{
+	std::vector<glm::vec4> vertices;
+	std::vector<glm::vec4> normals;
+	std::vector<glm::vec2> texCoords;
+	std::vector<unsigned int> indices;
+	objl::Material material;
+	GLuint kaLoadedMap;
+	GLuint kdLoadedMap;
+};
+
 GLuint tex0;
 GLuint tex1;
 GLuint tex2;
@@ -217,7 +228,6 @@ void windowResizeCallback(GLFWwindow* window,int width,int height) {
     glViewport(0,0,width,height);
 }
 
-
 GLuint readTexture(const char* filename) {
     GLuint tex;
     glActiveTexture(GL_TEXTURE0);
@@ -237,9 +247,39 @@ GLuint readTexture(const char* filename) {
 
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
     return tex;
 }
+
+std::vector<MeshToLoad> getCarMeshesToLoad()
+{
+	loader.LoadFile("Car-Model/3dcar/Torque Twister/Torque Twister.obj");
+	std::vector<MeshToLoad> meshes;
+	for (int i = 0; i < loader.LoadedMeshes.size(); i++)
+	{
+		MeshToLoad meshToLoad;
+		std::vector<glm::vec4> vertices;
+		std::vector<glm::vec4> normals;
+		std::vector<glm::vec2> texCoords;
+
+		objl::Mesh mesh = loader.LoadedMeshes[i];
+		for (int j = 0; j < mesh.Vertices.size(); j++)
+		{
+			objl::Vertex vertex = mesh.Vertices[j];
+			meshToLoad.vertices.push_back(glm::vec4(vertex.Position.X, vertex.Position.Y, vertex.Position.Z, 1.0f));
+			meshToLoad.normals.push_back(glm::vec4(vertex.Normal.X, vertex.Normal.Y, vertex.Normal.Z, 0.0f));
+			meshToLoad.texCoords.push_back(glm::vec2(vertex.TextureCoordinate.X, vertex.TextureCoordinate.Y));
+		}
+		meshToLoad.indices = mesh.Indices;
+		meshToLoad.material = mesh.MeshMaterial;
+		std::cout<<meshToLoad.material.name<<"\n";
+		meshToLoad.kaLoadedMap = readTexture(meshToLoad.material.map_Ka.c_str());
+		meshToLoad.kdLoadedMap = readTexture(meshToLoad.material.map_Kd.c_str());
+		meshes.push_back(meshToLoad);
+	}
+	return meshes;
+}
+
+std::vector<MeshToLoad> carMeshes;
 
 //Procedura inicjująca
 void initOpenGLProgram(GLFWwindow* window) {
@@ -250,14 +290,14 @@ void initOpenGLProgram(GLFWwindow* window) {
 	glfwSetKeyCallback(window,keyCallback);
 
 	sp=new ShaderProgram("v_simplest.glsl",NULL,"f_simplest.glsl");
-	car = new MyCar(40.0f, 60.0f, glm::vec3(0,0,0), false, 0.5f, 40.0f);
+	car = new MyCar(40.0f, 60.0f, glm::vec3(-34,0,-28), false, 0.5f, 40.0f);
 	enemyCar = new MyCar(20.0f, 1.0f, glm::vec3(-34, 0, -28), true, 0.5f, 20.0f);
 	enemyCar1 = new MyCar(15.0f, 1.0f, glm::vec3(-34, 0, -28), true, 1.0f, 10.0f);
 	enemyCar2 = new MyCar(5.0f, 1.0f, glm::vec3(-34, 0, -28), true, 1.6f, 5.0f);
 	tex0 = readTexture("tor2.png");
 	tex1 = readTexture("metal_spec.png");
 	tex2 = readTexture("tiger.png");
-	loader.LoadFile("Car-Model/truck.obj");
+	carMeshes = getCarMeshesToLoad();
 }
 
 
@@ -303,6 +343,8 @@ void drawCar1(MyCar* car)
 	std::vector<glm::vec4> vertices;
 	std::vector<glm::vec4> normals;
 	std::vector<glm::vec2> texCoords;
+	std::vector<unsigned int> indices;
+/*		
 	for (int i = 0; i < loader.LoadedVertices.size(); i++)
 	{
 		objl::Vertex vertex = loader.LoadedVertices[i];
@@ -314,24 +356,80 @@ void drawCar1(MyCar* car)
 	{
 		objl::Material material = loader.LoadedMaterials[i];
 	}
+*/
 
-//	glUniformMatrix4fv(sp->u("M"), 1, false, glm::value_ptr(car->getModelMatrix()));
 	glm::mat4 M = glm::mat4(1.0f);
 	M = glm::scale(M, glm::vec3(20.0f));
 	glUniformMatrix4fv(sp->u("M"), 1, false, glm::value_ptr(M));
-	glEnableVertexAttribArray(sp->a("vertex"));  //Włącz przesyłanie danych do atrybutu vertex
-	glVertexAttribPointer(sp->a("vertex"), 4, GL_FLOAT, false, 0, vertices.data()); //Wskaż tablicę z danymi dla atrybutu vertex
 
-	glEnableVertexAttribArray(sp->a("normal"));  //Włącz przesyłanie danych do atrybutu normal
-	glVertexAttribPointer(sp->a("normal"), 4, GL_FLOAT, false, 0, normals.data()); //Wskaż tablicę z danymi dla atrybutu normal
+	for (int i = 0; i < carMeshes.size(); i++)
+	{
+		MeshToLoad mesh = carMeshes[i];
+		objl::Material material = mesh.material;
 
-	glEnableVertexAttribArray(sp->a("texCoord0"));  //Włącz przesyłanie danych do atrybutu texCoord
-	glVertexAttribPointer(sp->a("texCoord0"), 2, GL_FLOAT, false, 0, texCoords.data()); //Wskaż tablicę z danymi dla atrybutu texCoord
-	glDrawElements(GL_TRIANGLES, loader.LoadedIndices.size(), GL_UNSIGNED_INT, loader.LoadedIndices.data());
+		float specular[] = {material.Ks.X, material.Ks.Y, material.Ks.Z, 0.0f};
+		float diffuse[] = {material.Kd.X, material.Kd.Y, material.Kd.Z, 0.0f};
+		float ambient[] = {material.Ka.X, material.Ka.Y, material.Ka.Z, 0.0f};
 
-	glDisableVertexAttribArray(sp->a("vertex"));  //Wyłącz przesyłanie danych do atrybutu vertex
-	glDisableVertexAttribArray(sp->a("normal"));  //Wyłącz przesyłanie danych do atrybutu normal
-	glDisableVertexAttribArray(sp->a("texCoord0"));  //Wyłącz przesyłanie danych do atrybutu texCoord0
+		//diffuse - jasne przy źródle
+		//specular - osbicia od obiektu
+		//ambient - minimalna jasnośc obiektu
+
+		glEnableVertexAttribArray(sp->u("specular"));
+		glVertexAttribPointer(sp->u("specular"), 4, GL_FLOAT, false, 0, specular);
+
+		glEnableVertexAttribArray(sp->u("diffuse"));
+		glVertexAttribPointer(sp->u("diffuse"), 4, GL_FLOAT, false, 0, diffuse);
+
+		glEnableVertexAttribArray(sp->u("ambient"));
+		glVertexAttribPointer(sp->u("ambient"), 4, GL_FLOAT, false, 0, ambient);
+
+		glEnableVertexAttribArray(sp->a("vertex"));  //Włącz przesyłanie danych do atrybutu vertex
+		glVertexAttribPointer(sp->a("vertex"), 4, GL_FLOAT, false, 0, mesh.vertices.data()); //Wskaż tablicę z danymi dla atrybutu vertex
+
+		glEnableVertexAttribArray(sp->a("normal"));  //Włącz przesyłanie danych do atrybutu normal
+		glVertexAttribPointer(sp->a("normal"), 4, GL_FLOAT, false, 0, mesh.normals.data()); //Wskaż tablicę z danymi dla atrybutu normal
+
+		glEnableVertexAttribArray(sp->a("texCoord0"));  //Włącz przesyłanie danych do atrybutu texCoord
+		glVertexAttribPointer(sp->a("texCoord0"), 2, GL_FLOAT, false, 0, mesh.texCoords.data()); //Wskaż tablicę z danymi dla atrybutu texCoord
+
+		glDrawElements(GL_TRIANGLES, mesh.indices.size(), GL_UNSIGNED_INT, mesh.indices.data());
+
+		glUniform1i(sp->u("textureMap0"), 0);
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, mesh.kaLoadedMap);
+
+		glUniform1i(sp->u("textureMap1"), 1);
+		glActiveTexture(GL_TEXTURE1);
+		glBindTexture(GL_TEXTURE_2D, mesh.kdLoadedMap);
+
+		glDisableVertexAttribArray(sp->a("vertex"));  //Wyłącz przesyłanie danych do atrybutu vertex
+		glDisableVertexAttribArray(sp->a("normal"));  //Wyłącz przesyłanie danych do atrybutu normal
+		glDisableVertexAttribArray(sp->a("texCoord0"));  //Wyłącz przesyłanie danych do atrybutu texCoord0
+		glDisableVertexAttribArray(sp->a("specular"));  //Wyłącz przesyłanie danych do atrybutu vertex
+		glDisableVertexAttribArray(sp->a("diffuse"));  //Wyłącz przesyłanie danych do atrybutu normal
+		glDisableVertexAttribArray(sp->a("ambient"));  //Wyłącz przesyłanie danych do atrybutu texCoord0
+	}
+
+//	glUniformMatrix4fv(sp->u("M"), 1, false, glm::value_ptr(car->getModelMatrix()));
+	//glm::mat4 M = glm::mat4(1.0f);
+	//M = glm::scale(M, glm::vec3(20.0f));
+	//glUniformMatrix4fv(sp->u("M"), 1, false, glm::value_ptr(M));
+
+	//glEnableVertexAttribArray(sp->a("vertex"));  //Włącz przesyłanie danych do atrybutu vertex
+	//glVertexAttribPointer(sp->a("vertex"), 4, GL_FLOAT, false, 0, vertices.data()); //Wskaż tablicę z danymi dla atrybutu vertex
+
+	//glEnableVertexAttribArray(sp->a("normal"));  //Włącz przesyłanie danych do atrybutu normal
+	//glVertexAttribPointer(sp->a("normal"), 4, GL_FLOAT, false, 0, normals.data()); //Wskaż tablicę z danymi dla atrybutu normal
+
+	//glEnableVertexAttribArray(sp->a("texCoord0"));  //Włącz przesyłanie danych do atrybutu texCoord
+	//glVertexAttribPointer(sp->a("texCoord0"), 2, GL_FLOAT, false, 0, texCoords.data()); //Wskaż tablicę z danymi dla atrybutu texCoord
+
+	//glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, indices.data());
+
+	//glDisableVertexAttribArray(sp->a("vertex"));  //Wyłącz przesyłanie danych do atrybutu vertex
+	//glDisableVertexAttribArray(sp->a("normal"));  //Wyłącz przesyłanie danych do atrybutu normal
+	//glDisableVertexAttribArray(sp->a("texCoord0"));  //Wyłącz przesyłanie danych do atrybutu texCoord0
 }
 
 //Procedura rysująca zawartość sceny
